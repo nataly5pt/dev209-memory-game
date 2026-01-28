@@ -1,10 +1,10 @@
-# Memory Game
+# 🧠 Memory Game — JavaScript & DOM Manipulation Assignment
 
-**Live Site:** [Paste your GitHub Pages URL here]  
-**Repo:** [Paste your GitHub Repo URL here]
+**Live Site:** https://nataly5pt.github.io/dev209-memory-game/  
+**GitHub Repository:** https://github.com/nataly5pt/dev209-memory-game  
 
 ## Description
-A simple memory matching game built with vanilla JavaScript, HTML, and CSS. Flip cards to find matching pairs. Tracks moves and elapsed time.
+A simple memory-matching game built with vanilla JavaScript, HTML, and CSS. Flip cards to find matching pairs. Tracks moves and elapsed time.
 
 ## Demo
 - Grid sizes: 4x4 (Easy), 6x6 (Hard)  
