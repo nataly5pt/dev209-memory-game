@@ -1,252 +1,56 @@
-// script.js
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
 
-(() => {
-    const boardEl = document.getElementById('gameBoard');
-    const movesEl = document.getElementById('moves');
-    const timerEl = document.getElementById('timer');
-    const restartBtn = document.getElementById('restartBtn');
-    const difficultySelect = document.getElementById('difficulty');
-    const themeSelect = document.getElementById('theme');
-    const gameOverModal = document.getElementById('gameOverModal');
-    const finalTimeEl = document.getElementById('finalTime');
-    const finalMovesEl = document.getElementById('finalMoves');
-    const soundToggle = document.getElementById('soundToggle');
+    <div class="game-container">
+        <h1>Memory Game</h1>
 
-    let size = parseInt(difficultySelect.value, 10); // grid width/height
-    let theme = themeSelect.value;
-    let totalCards = size * size;
-    let cards = [];
-    let firstCard = null;
-    let secondCard = null;
-    let lockBoard = false;
-    let matchedCount = 0;
-    let moves = 0;
-    let timer = null;
-    let seconds = 0;
-    let started = false;
+        <div class="controls">
+            <!-- Extra Credit: Difficulty -->
+            <select id="difficulty">
+                <option value="4">Easy (4x4)</option>
+                <option value="6">Hard (6x6)</option>
+            </select>
+            
+            <!-- Extra Credit: Custom Styles -->
+            <select id="theme">
+                <option value="letters">Letters (Blue/Green)</option>
+                <option value="emojis">Emojis (Purple/Orange)</option>
+                <option value="numbers">Numbers (Dark/Red)</option>
+            </select>
 
-    // content pools
-    const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-    const EMOJIS = ['😀','🎉','🚀','🌟','🍎','🍩','🐶','🐱','🌈','⚽','🎧','🎲','🍕','🍀','🍓','🦄','🍔','🏀','📚','🧩','🔑','🎯','🕹️','🛸','🦋','🌙','☀️','🔥','💎'];
-    // numbers will be generated
+            <button id="restartBtn">New Game</button>
+        </div>
 
-    function pad(n) { return n < 10 ? '0' + n : '' + n; }
-    function formatTime(s) { return `${pad(Math.floor(s/60))}:${pad(s%60)}`; }
+        <div class="stats">
+            <div id="moves">Moves: 0</div>
+            <!-- Extra Credit: Timer -->
+            <div id="timer">Time: 00:00</div>
+        </div>
 
-    function getPool(theme) {
-        if (theme === 'letters') return LETTERS.slice();
-        if (theme === 'emojis') return EMOJIS.slice();
-        // numbers: produce strings '1','2',...
-        return null;
-    }
+        <div class="game-board" id="gameBoard"></div>
+    </div>
 
-    function shuffle(array) {
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
-        }
-        return array;
-    }
+    <!-- Hidden Audio Checkbox for Extra Credit Requirement -->
+    <div style="display:none;">
+        <input type="checkbox" id="soundToggle" checked>
+    </div>
 
-    function buildCards(size, theme) {
-        totalCards = size * size;
-        const pairCount = totalCards / 2;
-        let pool = getPool(theme);
-        let faces = [];
+    <div class="modal" id="gameOverModal">
+        <div class="modal-content">
+            <h2>Good Job!</h2>
+            <p>You finished in <span id="finalTime"></span> with <span id="finalMoves"></span> moves.</p>
+            <button onclick="initGame()">Play Again</button>
+        </div>
+    </div>
 
-        if (theme === 'numbers') {
-            for (let i = 1; i <= pairCount; i++) faces.push(String(i));
-        } else {
-            if (!pool || pool.length < pairCount) {
-                // if pool too small, repeat it
-                while (pool.length < pairCount) pool = pool.concat(pool);
-            }
-            faces = pool.slice(0, pairCount);
-        }
-
-        // duplicate and shuffle
-        const cardFaces = shuffle(faces.concat(faces));
-        return cardFaces;
-    }
-
-    function createCardElement(face) {
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.dataset.value = face;
-
-        const inner = document.createElement('div');
-        inner.className = 'card-inner';
-
-        const front = document.createElement('div');
-        front.className = 'card-front';
-        front.textContent = ''; // back styling handled by CSS
-
-        const back = document.createElement('div');
-        back.className = 'card-back';
-        back.textContent = face;
-
-        if (theme === 'letters' || theme === 'numbers') {
-            back.setAttribute('aria-label', face);
-        }
-
-        inner.appendChild(front);
-        inner.appendChild(back);
-        card.appendChild(inner);
-
-        card.addEventListener('click', onCardClick);
-        return card;
-    }
-
-    function onCardClick(e) {
-        const el = e.currentTarget;
-        if (lockBoard || el.classList.contains('flipped') || el.classList.contains('matched')) return;
-
-        // start timer on first interaction
-        if (!started) startTimer();
-
-        flipCard(el);
-
-        if (!firstCard) {
-            firstCard = el;
-            return;
-        }
-
-        secondCard = el;
-        lockBoard = true;
-        moves++;
-        updateMoves();
-
-        if (firstCard.dataset.value === secondCard.dataset.value) {
-            // match
-            firstCard.classList.add('matched');
-            secondCard.classList.add('matched');
-            matchedCount += 2;
-            playSound('match');
-            resetTurn(true);
-            if (matchedCount === totalCards) {
-                setTimeout(gameOver, 500);
-            }
-        } else {
-            playSound('flip');
-            setTimeout(() => {
-                unflipCard(firstCard);
-                unflipCard(secondCard);
-                resetTurn(false);
-            }, 800);
-        }
-    }
-
-    function flipCard(card) {
-        card.classList.add('flipped');
-    }
-    function unflipCard(card) {
-        card.classList.remove('flipped');
-    }
-
-    function resetTurn(isMatch) {
-        firstCard = null;
-        secondCard = null;
-        lockBoard = false;
-    }
-
-    function updateMoves() {
-        movesEl.textContent = `Moves: ${moves}`;
-    }
-
-    function startTimer() {
-        started = true;
-        seconds = 0;
-        timerEl.textContent = `Time: ${formatTime(seconds)}`;
-        timer = setInterval(() => {
-            seconds++;
-            timerEl.textContent = `Time: ${formatTime(seconds)}`;
-        }, 1000);
-    }
-
-    function stopTimer() {
-        clearInterval(timer);
-        timer = null;
-        started = false;
-    }
-
-    function gameOver() {
-        stopTimer();
-        finalTimeEl.textContent = formatTime(seconds);
-        finalMovesEl.textContent = moves;
-        gameOverModal.style.display = 'block';
-        playSound('win');
-    }
-
-    function clearBoard() {
-        boardEl.innerHTML = '';
-        boardEl.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
-    }
-
-    function initGame() {
-        // close modal if open
-        gameOverModal.style.display = 'none';
-
-        size = parseInt(difficultySelect.value, 10);
-        theme = themeSelect.value;
-        totalCards = size * size;
-
-        // reset state
-        firstCard = null;
-        secondCard = null;
-        lockBoard = false;
-        matchedCount = 0;
-        moves = 0;
-        updateMoves();
-        stopTimer();
-        timerEl.textContent = 'Time: 00:00';
-
-        // build card set
-        let faces = buildCards(size, theme);
-        clearBoard();
-
-        // create elements
-        faces.forEach(face => {
-            const cardEl = createCardElement(face);
-            boardEl.appendChild(cardEl);
-        });
-
-        // small accessibility grid hint
-        boardEl.setAttribute('role', 'grid');
-        boardEl.querySelectorAll('.card').forEach((c, i) => c.setAttribute('role', 'gridcell'));
-    }
-
-    // basic audio feedback (beeps) using WebAudio API if soundToggle checked
-    function playSound(type) {
-        if (!soundToggle || !soundToggle.checked) return;
-        try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const o = ctx.createOscillator();
-            const g = ctx.createGain();
-            o.connect(g);
-            g.connect(ctx.destination);
-
-            if (type === 'win') { o.frequency.value = 880; g.gain.value = 0.05; o.type = 'sine'; }
-            else if (type === 'match') { o.frequency.value = 660; g.gain.value = 0.04; o.type = 'triangle'; }
-            else { o.frequency.value = 440; g.gain.value = 0.02; o.type = 'square'; }
-
-            o.start();
-            setTimeout(() => {
-                o.stop();
-                ctx.close();
-            }, 120);
-        } catch (e) {
-            // silence on error
-        }
-    }
-
-    // events
-    restartBtn.addEventListener('click', initGame);
-    difficultySelect.addEventListener('change', () => initGame());
-    themeSelect.addEventListener('change', () => initGame());
-
-    // expose initGame for modal onclick
-    window.initGame = initGame;
-
-    // initialize on load
-    document.addEventListener('DOMContentLoaded', initGame);
-})();
+    <script src="script.js" defer></script>
+</body>
+</html>
