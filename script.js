@@ -1,5 +1,3 @@
-// /c:/Users/natal/OneDrive/Desktop/Bellevue_College/BC_Classes/_Winter_2026/DEV_209/week_4/dev209-memory-game/script.js
-
 // --- Game State ---
 const state = {
     cards: [],
@@ -36,7 +34,7 @@ const themes = {
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 function playTone(freq, type, duration) {
-    if (!document.getElementById('soundToggle') || !document.getElementById('soundToggle').checked) return;
+    if (!document.getElementById('soundToggle').checked) return;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = type;
@@ -80,23 +78,23 @@ const initGame = () => {
     clearInterval(state.timer);
     state.timer = setInterval(updateTimer, 1000);
     
-    if (modal) modal.classList.remove('show');
-    if (movesDisplay) movesDisplay.textContent = `Moves: 0`;
-    if (timerDisplay) timerDisplay.textContent = `Time: 00:00`;
+    modal.classList.remove('show');
+    movesDisplay.textContent = `Moves: 0`;
+    timerDisplay.textContent = `Time: 00:00`;
 
     // Apply Theme
-    const themeKey = themeSelect ? themeSelect.value : 'letters';
-    const currentTheme = themes[themeKey] || themes.letters;
+    const themeKey = themeSelect.value;
+    const currentTheme = themes[themeKey];
     document.documentElement.style.setProperty('--card-back', currentTheme.back);
     document.documentElement.style.setProperty('--card-front', currentTheme.front);
 
     // Get Settings
-    const gridSize = difficultySelect ? parseInt(difficultySelect.value) : 4;
+    const gridSize = parseInt(difficultySelect.value);
     const numPairs = (gridSize * gridSize) / 2;
     state.totalPairs = numPairs;
 
     // Setup Grid CSS
-    if (gameBoard) gameBoard.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+    gameBoard.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
     
     // Generate Cards
     const selectedItems = currentTheme.set.slice(0, numPairs);
@@ -109,7 +107,7 @@ const initGame = () => {
     }
 
     // REQUIREMENT: DOM Manipulation
-    if (gameBoard) gameBoard.innerHTML = '';
+    gameBoard.innerHTML = '';
 
     // REQUIREMENT: Functional Programming (.forEach)
     deck.forEach((item) => {
@@ -126,15 +124,12 @@ const initGame = () => {
 
         // REQUIREMENT: Event Listener
         card.addEventListener('click', () => handleCardClick(card));
-        if (gameBoard) gameBoard.appendChild(card);
+        gameBoard.appendChild(card);
     });
 };
 
 const handleCardClick = (card) => {
     if (state.isLocked || card.classList.contains('flipped') || !state.gameActive) return;
-
-    // Resume audio context on user gesture if needed
-    if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
 
     sounds.flip();
     card.classList.add('flipped');
@@ -142,7 +137,7 @@ const handleCardClick = (card) => {
 
     if (state.flippedCards.length === 2) {
         state.moves++;
-        if (movesDisplay) movesDisplay.textContent = `Moves: ${state.moves}`;
+        movesDisplay.textContent = `Moves: ${state.moves}`;
         checkForMatch();
     }
 };
@@ -176,7 +171,7 @@ const updateTimer = () => {
     state.seconds++;
     const mins = Math.floor(state.seconds / 60).toString().padStart(2, '0');
     const secs = (state.seconds % 60).toString().padStart(2, '0');
-    if (timerDisplay) timerDisplay.textContent = `Time: ${mins}:${secs}`;
+    timerDisplay.textContent = `Time: ${mins}:${secs}`;
 };
 
 const endGame = () => {
@@ -185,19 +180,17 @@ const endGame = () => {
     sounds.win();
     
     // REQUIREMENT: ES6 Feature (Template Literals)
-    const finalTimeEl = document.getElementById('finalTime');
-    const finalMovesEl = document.getElementById('finalMoves');
-    if (finalTimeEl) finalTimeEl.textContent = timerDisplay ? timerDisplay.textContent.replace('Time: ', '') : '00:00';
-    if (finalMovesEl) finalMovesEl.textContent = state.moves;
+    document.getElementById('finalTime').textContent = timerDisplay.textContent.replace('Time: ', '');
+    document.getElementById('finalMoves').textContent = state.moves;
     
     setTimeout(() => {
-        if (modal) modal.classList.add('show');
+        modal.classList.add('show');
     }, 500);
 };
 
-if (restartBtn) restartBtn.addEventListener('click', initGame);
-if (difficultySelect) difficultySelect.addEventListener('change', initGame);
-if (themeSelect) themeSelect.addEventListener('change', initGame);
+restartBtn.addEventListener('click', initGame);
+difficultySelect.addEventListener('change', initGame);
+themeSelect.addEventListener('change', initGame);
 
 // Start Game
 initGame();
