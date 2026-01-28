@@ -1,56 +1,59 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Memory Game</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Memory Game</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-    <div class="game-container">
-        <h1>Memory Game</h1>
+  <!-- YOUR GAME HTML goes here -->
+  <main class="game-container">
+    <h1>Memory Game</h1>
 
-        <div class="controls">
-            <!-- Extra Credit: Difficulty -->
-            <select id="difficulty">
-                <option value="4">Easy (4x4)</option>
-                <option value="6">Hard (6x6)</option>
-            </select>
-            
-            <!-- Extra Credit: Custom Styles -->
-            <select id="theme">
-                <option value="letters">Letters (Blue/Green)</option>
-                <option value="emojis">Emojis (Purple/Orange)</option>
-                <option value="numbers">Numbers (Dark/Red)</option>
-            </select>
+    <div class="controls">
+      <label>Difficulty:
+        <select id="difficulty">
+          <option value="4">Easy (4x4)</option>
+          <option value="6">Hard (6x6)</option>
+        </select>
+      </label>
 
-            <button id="restartBtn">New Game</button>
-        </div>
+      <label>Theme:
+        <select id="theme">
+          <option value="letters">Letters</option>
+          <option value="emojis">Emojis</option>
+          <option value="numbers">Numbers</option>
+        </select>
+      </label>
 
-        <div class="stats">
-            <div id="moves">Moves: 0</div>
-            <!-- Extra Credit: Timer -->
-            <div id="timer">Time: 00:00</div>
-        </div>
-
-        <div class="game-board" id="gameBoard"></div>
+      <button id="restartBtn">Restart</button>
+      <label class="sound">
+        <input type="checkbox" id="soundToggle" checked />
+        Sound
+      </label>
     </div>
 
-    <!-- Hidden Audio Checkbox for Extra Credit Requirement -->
-    <div style="display:none;">
-        <input type="checkbox" id="soundToggle" checked>
+    <div class="stats">
+      <div>Moves: <span id="moves">0</span></div>
+      <div>Time: <span id="timer">00:00</span></div>
     </div>
 
-    <div class="modal" id="gameOverModal">
-        <div class="modal-content">
-            <h2>Good Job!</h2>
-            <p>You finished in <span id="finalTime"></span> with <span id="finalMoves"></span> moves.</p>
-            <button onclick="initGame()">Play Again</button>
-        </div>
-    </div>
+    <div id="gameBoard" class="board"></div>
+  </main>
 
-    <script src="script.js" defer></script>
+  <!-- Game Over Modal -->
+  <div id="gameOverModal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Game Over 🎉</h2>
+      <p>Time: <span id="finalTime"></span></p>
+      <p>Moves: <span id="finalMoves"></span></p>
+      <button id="closeModalBtn">Close</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
+
