@@ -24,8 +24,9 @@ body {
     border-radius: 15px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.1);
     text-align: center;
-    max-width: 500px;
-    width: 90%;
+    /* Changed max-width to auto so it fits the grid */
+    width: auto;
+    min-width: 400px;
 }
 
 h1 {
@@ -81,21 +82,23 @@ button:hover {
     color: black;
 }
 
-/* Game Grid */
-.game-board {
+/* Game Grid - THIS IS THE FIX */
+#gameBoard {
     display: grid;
-    gap: 10px;
-    margin: 0 auto;
+    gap: 12px;
     justify-content: center;
+    margin-top: 16px;
+    /* Columns are set in JS */
 }
 
 /* Card Styles */
 .card {
-    width: 60px;
-    height: 60px;
+    width: 80px;
+    height: 80px;
     background-color: transparent;
     cursor: pointer;
     perspective: 1000px;
+    border-radius: 10px;
 }
 
 .card-inner {
