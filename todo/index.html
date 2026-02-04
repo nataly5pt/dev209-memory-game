@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do App</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <!-- AUTH SECTION (Login/Register) -->
+        <div id="authSection">
+            <h1>Welcome</h1>
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showTab('login')">Login</button>
+                <button class="tab-btn" onclick="showTab('register')">Register</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="loginForm" class="auth-form">
+                <input type="email" id="loginEmail" placeholder="Email" required>
+                <input type="password" id="loginPassword" placeholder="Password" required>
+                <button type="submit">Login</button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="registerForm" class="auth-form hidden">
+                <input type="text" id="regName" placeholder="Full Name" required>
+                <input type="email" id="regEmail" placeholder="Email" required>
+                <input type="password" id="regPassword" placeholder="Password" required>
+                <button type="submit">Register</button>
+            </form>
+            <p id="authMessage" class="error"></p>
+        </div>
+
+        <!-- APP SECTION (To-Do List) -->
+        <div id="appSection" class="hidden">
+            <header>
+                <h2>My Tasks</h2>
+                <button id="logoutBtn">Logout</button>
+            </header>
+
+            <div class="add-task-container">
+                <input type="text" id="newTitle" placeholder="Task Title..." required>
+                <input type="text" id="newDesc" placeholder="Description (optional)">
+                <button id="addBtn">Add</button>
+            </div>
+
+            <ul id="todoList">
+                <!-- Tasks go here -->
+            </ul>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

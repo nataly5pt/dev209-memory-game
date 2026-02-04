@@ -167,16 +167,24 @@
 </head>
 <body>
 
-    <div class="game-container">
-        <h1>Memory Game</h1>
+    <div class="controls">
+    <label>Difficulty:
+        <select id="difficulty">
+            <option value="4">Easy (4x4)</option>
+            <option value="6">Hard (6x6)</option>
+        </select>
+    </label>
+    
+    <label>Theme:
+        <select id="theme">
+            <option value="letters">Letters</option>
+            <option value="emojis">Emojis (Animals)</option>
+            <option value="numbers">Numbers</option>
+        </select>
+    </label>
 
-        <div class="controls">
-            <select id="difficulty">
-                <option value="4">Easy (4x4)</option>
-                <option value="6">Hard (6x6)</option>
-            </select>
-            <button id="restartBtn">New Game</button>
-        </div>
+    <button id="restartBtn">Restart</button>
+</div>
 
         <div class="stats">
             <div id="moves">Moves: 0</div>
