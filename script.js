@@ -1,288 +1,247 @@
-// --- Game State ---
-const state = {
-    cards: [],
-    flippedCards: [],
-    matchedPairs: 0,
-    totalPairs: 0,
-    moves: 0,
-    timer: null,
-    seconds: 0,
-    isLocked: false,
-    gameActive: false
-};
-
-// --- Themes Data ---
-const themes = {
-    letters: {
-        set: 'ABCDEFGHIJKLMNOPQR'.split(''),
-        back: '#2196F3', // Blue
-        front: '#4CAF50' // Green
-    },
-    emojis: {
-        set: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦'],
-        back: '#673AB7', // Purple
-        front: '#FF9800' // Orange
-    },
-    numbers: {
-        set: ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18'],
-        back: '#333333', // Dark Grey
-        front: '#F44336' // Red
-    }
-};
-
-// --- Audio Context ---
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-function playTone(freq, type, duration) {
-    const toggle = document.getElementById('soundToggle');
-    if (toggle && !toggle.checked) return;
-
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + duration);
-}
-
-const sounds = {
-    flip: () => playTone(300, 'sine', 0.1),
-    match: () => { playTone(600, 'sine', 0.1); setTimeout(() => playTone(800, 'sine', 0.2), 100); },
-    wrong: () => playTone(150, 'sawtooth', 0.3),
-    win: () => { playTone(500, 'square', 0.1); setTimeout(() => playTone(700, 'square', 0.1), 100); }
-};
-
-// --- DOM Elements ---
-const gameBoard = document.getElementById('gameBoard');
+const gameBoard = document.getElementById('game-board');
 const movesDisplay = document.getElementById('moves');
 const timerDisplay = document.getElementById('timer');
-const globalMovesDisplay = document.getElementById('globalMoves'); // NEW
+const restartBtn = document.getElementById('restartBtn');
 const difficultySelect = document.getElementById('difficulty');
 const themeSelect = document.getElementById('theme');
-const restartBtn = document.getElementById('restartBtn');
-const modal = document.getElementById('gameOverModal');
 
-// --- STORAGE FUNCTIONS (Assignment Part 1) ---
+// NEW: Global Moves Display
+const globalMovesDisplay = document.createElement('div');
+globalMovesDisplay.id = 'global-moves';
+globalMovesDisplay.style.marginTop = '10px';
+globalMovesDisplay.style.fontWeight = 'bold';
+document.querySelector('.stats').appendChild(globalMovesDisplay);
 
-// 1. Save current game state to SessionStorage (Survives Refresh, Unique per Tab)
-const saveGameState = () => {
-    if (!state.gameActive) return;
-    
-    const gameData = {
-        moves: state.moves,
-        seconds: state.seconds,
-        matchedPairs: state.matchedPairs,
-        totalPairs: state.totalPairs,
+let cards = [];
+let flippedCards = [];
+let matchedPairs = 0;
+let moves = 0;
+let timer = 0;
+let timerInterval;
+let gameActive = false;
+
+// THEMES
+const themes = {
+    letters: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R'],
+    emojis: ['🐶', '🐱', '🐭', '🐹', '🐰', 'ox', '🐯', '🐨', '🐷', '🐸', '🐵', '🐔', '🐧', '🐦', 'duck', '🦅', '🦉', '🦇'],
+    numbers: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18']
+};
+
+// --- STATE MANAGEMENT EXPLANATION ---
+// 1. Game State (Cards, Timer, Current Moves): Uses sessionStorage.
+//    Why? The requirement says "if you open another tab... it should be another unique version of the game."
+//    sessionStorage is unique to each tab, so Game A in Tab 1 won't mess up Game B in Tab 2.
+//
+// 2. Global Total Moves: Uses localStorage.
+//    Why? The requirement says "count all moves across the tabs."
+//    localStorage is shared across all tabs for the same domain.
+
+function saveGameState() {
+    const state = {
+        cards: cards.map(c => ({ 
+            value: c.dataset.value, 
+            flipped: c.classList.contains('flipped'), 
+            matched: c.classList.contains('matched') 
+        })),
+        moves: moves,
+        timer: timer,
         difficulty: difficultySelect.value,
         theme: themeSelect.value,
-        boardHTML: gameBoard.innerHTML // Save the actual HTML of the cards
+        matchedPairs: matchedPairs,
+        gameActive: gameActive
     };
-    sessionStorage.setItem('memoryGameState', JSON.stringify(gameData));
-};
+    sessionStorage.setItem('memoryGameState', JSON.stringify(state));
+}
 
-// 2. Update Global Moves in LocalStorage (Shared across all tabs)
-const updateGlobalMoves = () => {
-    let total = parseInt(localStorage.getItem('memoryGameGlobalMoves')) || 0;
+function updateGlobalMoves() {
+    let total = parseInt(localStorage.getItem('globalMoves') || '0');
+    globalMovesDisplay.textContent = `Total Global Moves (All Tabs): ${total}`;
+}
+
+function incrementGlobalMoves() {
+    let total = parseInt(localStorage.getItem('globalMoves') || '0');
     total++;
-    localStorage.setItem('memoryGameGlobalMoves', total);
-    globalMovesDisplay.textContent = total;
-};
+    localStorage.setItem('globalMoves', total);
+    updateGlobalMoves();
+    
+    // Trigger update in other tabs
+    window.dispatchEvent(new Event('storage'));
+}
 
-// 3. Load Global Moves on startup
-const loadGlobalMoves = () => {
-    const total = parseInt(localStorage.getItem('memoryGameGlobalMoves')) || 0;
-    globalMovesDisplay.textContent = total;
-};
+// Listen for changes in other tabs to update global count immediately
+window.addEventListener('storage', () => {
+    updateGlobalMoves();
+});
 
-// --- Game Logic ---
+function initGame(loadFromSave = false) {
+    // Clear previous state
+    gameBoard.innerHTML = '';
+    flippedCards = [];
+    clearInterval(timerInterval);
 
-const initGame = (isLoadFromSave = false) => {
-    // Stop any existing timer
-    clearInterval(state.timer);
-    loadGlobalMoves();
+    let savedState = null;
+    if (loadFromSave) {
+        try {
+            savedState = JSON.parse(sessionStorage.getItem('memoryGameState'));
+        } catch (e) {
+            console.error("Save file corrupted", e);
+            loadFromSave = false;
+        }
+    }
 
-    // CHECK: Is there a saved game in SessionStorage?
-    const savedData = sessionStorage.getItem('memoryGameState');
-
-    if (isLoadFromSave && savedData) {
-        // --- RESTORE GAME ---
-        const data = JSON.parse(savedData);
+    if (loadFromSave && savedState) {
+        // RESTORE STATE
+        moves = savedState.moves;
+        timer = savedState.timer;
+        matchedPairs = savedState.matchedPairs;
+        gameActive = savedState.gameActive;
+        difficultySelect.value = savedState.difficulty;
+        themeSelect.value = savedState.theme;
         
-        // Restore variables
-        state.moves = data.moves;
-        state.seconds = data.seconds;
-        state.matchedPairs = data.matchedPairs;
-        state.totalPairs = data.totalPairs;
-        state.gameActive = true;
-        state.flippedCards = []; // Reset flipped cards to avoid stuck state
-        state.isLocked = false;
-
-        // Restore UI
-        difficultySelect.value = data.difficulty;
-        themeSelect.value = data.theme;
-        movesDisplay.textContent = state.moves;
+        // Rebuild Board from Save
+        const gridSize = parseInt(savedState.difficulty);
+        gameBoard.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
         
-        // Restore Board
-        gameBoard.style.gridTemplateColumns = `repeat(${data.difficulty}, 80px)`;
-        gameBoard.innerHTML = data.boardHTML;
-
-        // IMPORTANT: Re-attach event listeners because innerHTML kills them
-        const cards = document.querySelectorAll('.card');
-        cards.forEach(card => {
-            card.addEventListener('click', () => handleCardClick(card));
+        cards = [];
+        savedState.cards.forEach(cardData => {
+            const card = createCardElement(cardData.value);
+            if (cardData.flipped) card.classList.add('flipped');
+            if (cardData.matched) card.classList.add('matched');
+            cards.push(card);
+            gameBoard.appendChild(card);
         });
 
-        // Apply Theme Colors
-        const currentTheme = themes[data.theme];
-        document.documentElement.style.setProperty('--card-back', currentTheme.back);
-        document.documentElement.style.setProperty('--card-front', currentTheme.front);
-
-        // Restart Timer
-        state.timer = setInterval(updateTimer, 1000);
+        if (gameActive) startTimer();
 
     } else {
-        // --- NEW GAME ---
+        // NEW GAME
+        moves = 0;
+        timer = 0;
+        matchedPairs = 0;
+        gameActive = true;
         sessionStorage.removeItem('memoryGameState'); // Clear old save
         
-        state.flippedCards = [];
-        state.matchedPairs = 0;
-        state.moves = 0;
-        state.seconds = 0;
-        state.isLocked = false;
-        state.gameActive = true;
-        
-        movesDisplay.textContent = '0';
-        timerDisplay.textContent = '00:00';
-        state.timer = setInterval(updateTimer, 1000);
-        modal.classList.remove('show');
-
-        // Apply Theme
-        const themeKey = themeSelect.value;
-        const currentTheme = themes[themeKey];
-        document.documentElement.style.setProperty('--card-back', currentTheme.back);
-        document.documentElement.style.setProperty('--card-front', currentTheme.front);
-
-        // Get Settings
         const gridSize = parseInt(difficultySelect.value);
         const numPairs = (gridSize * gridSize) / 2;
-        state.totalPairs = numPairs;
-
-        gameBoard.style.gridTemplateColumns = `repeat(${gridSize}, 80px)`;
-        
-        // Generate Cards
-        const selectedItems = currentTheme.set.slice(0, numPairs);
-        const deck = [...selectedItems, ...selectedItems];
+        const theme = themes[themeSelect.value];
+        const selectedValues = theme.slice(0, numPairs);
+        const gameValues = [...selectedValues, ...selectedValues];
         
         // Shuffle
-        for (let i = deck.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [deck[i], deck[j]] = [deck[j], deck[i]];
-        }
+        gameValues.sort(() => Math.random() - 0.5);
 
-        gameBoard.innerHTML = '';
-
-        deck.forEach((item) => {
-            const card = document.createElement('div');
-            card.classList.add('card');
-            card.dataset.value = item;
-
-            card.innerHTML = `
-                <div class="card-inner">
-                    <div class="card-face card-front"></div>
-                    <div class="card-face card-back">${item}</div>
-                </div>
-            `;
-
-            card.addEventListener('click', () => handleCardClick(card));
+        gameBoard.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+        
+        cards = [];
+        gameValues.forEach(value => {
+            const card = createCardElement(value);
+            cards.push(card);
             gameBoard.appendChild(card);
         });
         
-        saveGameState(); // Save initial state
+        saveGameState();
+        startTimer();
     }
-};
 
-const handleCardClick = (card) => {
-    if (state.isLocked || card.classList.contains('flipped') || !state.gameActive) return;
+    movesDisplay.textContent = `Moves: ${moves}`;
+    timerDisplay.textContent = `Time: ${formatTime(timer)}`;
+    updateGlobalMoves();
+}
 
-    sounds.flip();
+function createCardElement(value) {
+    const card = document.createElement('div');
+    card.classList.add('card');
+    card.dataset.value = value;
+
+    const cardInner = document.createElement('div');
+    cardInner.classList.add('card-inner');
+
+    const cardFront = document.createElement('div');
+    cardFront.classList.add('card-front');
+
+    const cardBack = document.createElement('div');
+    cardBack.classList.add('card-back');
+    cardBack.textContent = value;
+
+    cardInner.appendChild(cardFront);
+    cardInner.appendChild(cardBack);
+    card.appendChild(cardInner);
+
+    card.addEventListener('click', () => flipCard(card));
+    return card;
+}
+
+function flipCard(card) {
+    if (!gameActive || card.classList.contains('flipped') || flippedCards.length >= 2) return;
+
     card.classList.add('flipped');
-    state.flippedCards.push(card);
-    
-    saveGameState(); // Save state on flip
+    flippedCards.push(card);
 
-    if (state.flippedCards.length === 2) {
-        state.moves++;
-        movesDisplay.textContent = state.moves;
-        
-        updateGlobalMoves(); // Increment global moves
-        saveGameState(); // Save state on move
-
+    if (flippedCards.length === 2) {
+        moves++;
+        movesDisplay.textContent = `Moves: ${moves}`;
+        incrementGlobalMoves(); // Update global counter
+        saveGameState();
         checkForMatch();
+    } else {
+        saveGameState();
     }
-};
+}
 
-const checkForMatch = () => {
-    state.isLocked = true;
-    const [card1, card2] = state.flippedCards;
-    const match = card1.dataset.value === card2.dataset.value;
+function checkForMatch() {
+    const [card1, card2] = flippedCards;
+    const isMatch = card1.dataset.value === card2.dataset.value;
 
-    if (match) {
-        sounds.match();
-        state.matchedPairs++;
-        state.flippedCards = [];
-        state.isLocked = false;
-        saveGameState(); // Save match state
+    if (isMatch) {
+        card1.classList.add('matched');
+        card2.classList.add('matched');
+        matchedPairs++;
+        flippedCards = [];
+        saveGameState();
 
-        if (state.matchedPairs === state.totalPairs) {
+        const totalPairs = (parseInt(difficultySelect.value) ** 2) / 2;
+        if (matchedPairs === totalPairs) {
             endGame();
         }
     } else {
-        sounds.wrong();
         setTimeout(() => {
             card1.classList.remove('flipped');
             card2.classList.remove('flipped');
-            state.flippedCards = [];
-            state.isLocked = false;
-            saveGameState(); // Save reset state
+            flippedCards = [];
+            saveGameState();
         }, 1000);
     }
-};
+}
 
-const updateTimer = () => {
-    state.seconds++;
-    const mins = Math.floor(state.seconds / 60).toString().padStart(2, '0');
-    const secs = (state.seconds % 60).toString().padStart(2, '0');
-    timerDisplay.textContent = `${mins}:${secs}`;
-    saveGameState(); // Save timer state
-};
+function startTimer() {
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+        timer++;
+        timerDisplay.textContent = `Time: ${formatTime(timer)}`;
+        saveGameState();
+    }, 1000);
+}
 
-const endGame = () => {
-    state.gameActive = false;
-    clearInterval(state.timer);
-    sessionStorage.removeItem('memoryGameState'); // Clear save on win
-    sounds.win();
-    
-    document.getElementById('finalTime').textContent = timerDisplay.textContent;
-    document.getElementById('finalMoves').textContent = state.moves;
-    
-    setTimeout(() => {
-        modal.classList.add('show');
-    }, 500);
-};
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const secs = (seconds % 60).toString().padStart(2, '0');
+    return `${mins}:${secs}`;
+}
 
-// Restart button always starts a FRESH game
+function endGame() {
+    gameActive = false;
+    clearInterval(timerInterval);
+    saveGameState();
+    setTimeout(() => alert(`Game Over! Moves: ${moves} Time: ${formatTime(timer)}`), 500);
+}
+
 restartBtn.addEventListener('click', () => initGame(false));
-
 difficultySelect.addEventListener('change', () => initGame(false));
 themeSelect.addEventListener('change', () => initGame(false));
 
-// On Page Load: Try to load from save
+// On Page Load
 window.addEventListener('load', () => {
-    // If we have data, load it. If not, start new.
+    // Check if we have a saved game in this tab
     if (sessionStorage.getItem('memoryGameState')) {
         initGame(true);
     } else {
